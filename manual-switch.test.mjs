@@ -22,7 +22,14 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 const root = path.dirname(fileURLToPath(import.meta.url));
-if (root !== process.env.SESSION_CONTINUITY_TEST_ROOT || root !== process.cwd()) {
+function sameDirectory(a,b) {
+  if(!a||!b)return false;
+  try {
+    const left=fs.statSync(a,{bigint:true}),right=fs.statSync(b,{bigint:true});
+    return left.isDirectory()&&right.isDirectory()&&left.ino>0n&&left.dev===right.dev&&left.ino===right.ino;
+  } catch { return false; }
+}
+if (!sameDirectory(root,process.env.SESSION_CONTINUITY_TEST_ROOT) || !sameDirectory(root,process.cwd())) {
   throw new Error('Refusing a test outside its isolated fixture');
 }
 const [cmd, ...args] = process.argv.slice(2);
@@ -40,6 +47,18 @@ else if (cmd === 'pause' || cmd === 'resume') {
   else console.log(JSON.stringify({...state.result,threadId:args[0]}));
 } else { throw new Error('Unexpected fixture command: ' + cmd); }
 `;
+
+test('UI fixture identity guard rejects other directories and accepts equivalent Windows path spelling',()=>{
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),'continuity-ui-guard-test-')),other=fs.mkdtempSync(path.join(os.tmpdir(),'continuity-ui-other-test-'));
+  const cli=path.join(root,'cli.mjs');fs.writeFileSync(cli,stubCli);fs.writeFileSync(path.join(root,'fixture.json'),'{"status":{"fixture":true}}');
+  for(const [cwd,declared] of [[other,root],[root,other],[root,'']]){
+    const r=spawnSync(process.execPath,[cli,'status'],{cwd,encoding:'utf8',windowsHide:true,env:{...process.env,SESSION_CONTINUITY_TEST_ROOT:declared}});
+    assert.equal(r.status,1);assert.match(r.stderr,/Refusing a test outside/);
+  }
+  const declared=process.platform==='win32'?root.toUpperCase():root;
+  const r=spawnSync(process.execPath,[cli,'status'],{cwd:root,encoding:'utf8',windowsHide:true,env:{...process.env,SESSION_CONTINUITY_TEST_ROOT:declared}});
+  assert.equal(r.status,0,r.stderr);assert.deepEqual(JSON.parse(r.stdout),{fixture:true});
+});
 
 function runUi({args = [], input = '', paused = true, alive = true, tasks, result, failRequest = false, desktop, language='zh-Hant'} = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'continuity-ui-test-'));
