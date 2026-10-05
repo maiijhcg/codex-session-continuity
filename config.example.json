@@ -1,0 +1,10 @@
+{
+  "codexHome": "C:/Users/YOUR_NAME/.codex",
+  "ownerThreadId": "REPLACE_WITH_A_DEDICATED_MANAGEMENT_TASK_UUID",
+  "holdThreadId": "REPLACE_WITH_THE_SAME_MANAGEMENT_TASK_UUID",
+  "enabledAt": 0,
+  "pollMs": 10000,
+  "softLimit": 500000,
+  "hardLimit": 920000,
+  "attachments": { "maxInlineBytes": 16777216, "maxLocalFileBytes": 536870912 }
+}
