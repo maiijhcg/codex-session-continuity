@@ -75,7 +75,14 @@ test('startup registration and removal use a temporary Startup folder, preserve 
   const run=extra=>spawnSync(pwsh,['-NoProfile','-File',path.join(install,'install-startup.ps1'),'-StartupDirectory',startup,...extra],{encoding:'utf8',timeout:15000,windowsHide:true});
   let r=run([]);assert.equal(r.status,0,r.stderr);
   const entries=fs.readdirSync(startup);assert.equal(entries.length,1);assert.equal(entries[0],'codex session continuity.vbs');
-  const content=fs.readFileSync(path.join(startup,entries[0]),'utf16le');assert.ok(content.includes(path.join(install,'supervise.ps1')));assert.match(content,/, 0, False/);
+  const content=fs.readFileSync(path.join(startup,entries[0]),'utf16le');
+  const target=content.replaceAll('""','"').match(/-File "([^"]+)"/)?.[1];
+  assert.ok(target,'Startup must contain a quoted PowerShell script path');
+  // Windows can expand an 8.3 TEMP path (e.g. a runner alias) or normalize its
+  // spelling. Compare the actual directory, while checking Unicode separately.
+  assert.equal(fs.realpathSync(path.dirname(target)).toLowerCase(),fs.realpathSync(install).toLowerCase());
+  assert.equal(path.basename(target).toLowerCase(),'supervise.ps1');assert.match(target,/app 日本語 with spaces/i);
+  assert.match(content,/, 0, False/);
   r=run([]);assert.equal(r.status,0,r.stderr);r=run(['-Remove']);assert.equal(r.status,0,r.stderr);
   assert.equal(fs.readdirSync(startup).length,0);assert.ok(fs.readdirSync(path.join(install,'install-backups')).length>=2);
 });
