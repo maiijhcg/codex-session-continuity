@@ -80,7 +80,9 @@ test('startup registration and removal use a temporary Startup folder, preserve 
   assert.ok(target,'Startup must contain a quoted PowerShell script path');
   // Windows can expand an 8.3 TEMP path (e.g. a runner alias) or normalize its
   // spelling. Compare the actual directory, while checking Unicode separately.
-  assert.equal(fs.realpathSync(path.dirname(target)).toLowerCase(),fs.realpathSync(install).toLowerCase());
+  const actualDirectory=fs.statSync(path.dirname(target),{bigint:true}),expectedDirectory=fs.statSync(install,{bigint:true});
+  assert.ok(expectedDirectory.ino>0n,'Windows must report a directory identity');
+  assert.equal(actualDirectory.dev,expectedDirectory.dev);assert.equal(actualDirectory.ino,expectedDirectory.ino);
   assert.equal(path.basename(target).toLowerCase(),'supervise.ps1');assert.match(target,/app 日本語 with spaces/i);
   assert.match(content,/, 0, False/);
   r=run([]);assert.equal(r.status,0,r.stderr);r=run(['-Remove']);assert.equal(r.status,0,r.stderr);
